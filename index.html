@@ -13,15 +13,9 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      height: 90vh;
+      height: 100vh;
       user-select: none;
       -webkit-user-select: none;
-    }
-
-    h1 {
-      margin-top: 10px;
-      color: #2d2d2d;
-      text-shadow: 1px 1px white;
     }
 
     #lives,
@@ -36,6 +30,15 @@
       box-shadow: 2px 2px #888;
     }
 
+    #powerUpStatus {
+      font-size: 16px;
+      color: white;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 5px 10px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+
     #game {
       position: relative;
       width: 90vw;
@@ -45,7 +48,7 @@
       border: 5px dashed #ff6f61;
       overflow: hidden;
       border-radius: 15px;
-      margin-bottom: 50px;
+      margin-bottom: 100px;
     }
 
     .player {
@@ -131,6 +134,28 @@
       touch-action: manipulation;
     }
 
+    #joystick {
+      position: fixed;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 100px;
+      background-color: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #handle {
+      width: 40px;
+      height: 40px;
+      background-color: #4dabf7;
+      border-radius: 50%;
+      position: absolute;
+    }
+
     @media (max-width: 500px) {
       h1 {
         font-size: 1.2em;
@@ -151,20 +176,23 @@
 </head>
 
 <body>
-  <h1>🏃‍♂️ Fuja da Prova!</h1>
-  <div style="display: flex; align-items: baseline;">
+  <div style="display: flex; align-items: baseline; margin-top: 10px;">
     <div id="lives">❤️❤️❤️</div>
     <div style="width: 30px;"></div>
     <div id="timer">⏱️ Tempo: 0s</div>
     <div style="width: 30px;"></div>
     <div id="score">💯 Pontos: 0</div>
   </div>
+  <div id="powerUpStatus"></div>
   <div id="game">
     <div class="player" id="player">👨‍🎓</div>
     <div id="gameOver">
       <p>Você foi pego pela prova!<br>Sua pontuação: 0<br>Recurso ou recuperação? 😂</p>
       <button id="restartButton">Jogar Novamente</button>
     </div>
+  </div>
+  <div id="joystick">
+    <div id="handle"></div>
   </div>
   <audio id="powerUpSound" src="powerup.mp3"></audio>
   <audio id="gameOverSound" src="gameover.mp3"></audio>
@@ -177,23 +205,32 @@
     const livesDisplay = document.getElementById("lives");
     const gameOver = document.getElementById("gameOver");
     const restartButton = document.getElementById("restartButton");
+    const powerUpStatus = document.getElementById("powerUpStatus");
+    const joystick = document.getElementById("joystick");
+    const handle = document.getElementById("handle");
 
     let playerX = 100, playerY = 100;
     let provas = [];
     let powerUpsAtivos = [];
+    let activePowerUps = [];
     let tempo = 0;
     let score = 0;
     let vidas = 3;
     let difficultyLevel = 1;
     let isInvincible = false;
+    let isInvisible = false;
     let playerVelMultiplier = 1;
+    let joystickActive = false;
+    let joystickCenterX, joystickCenterY;
+    let handleX = 0, handleY = 0;
 
     const nomesDasProvas = [
       { nome: "Técnicas de Compilação", cor: "#9b59b6", tipo: "aleatoria" },
       { nome: "Inteligência Artificial", cor: "#1e3799", tipo: "previsora" },
       { nome: "Engenharia de Software", cor: "#e67e22", tipo: "rapida" },
       { nome: "Sistemas Distribuídos", cor: "#e74c3c", tipo: "grupo" },
-      { nome: "Programação Web", cor: "#27ae60", tipo: "bugada" }
+      { nome: "Programação Web", cor: "#27ae60", tipo: "bugada" },
+      { nome: "Trabalho em Grupo", cor: "#8e44ad", tipo: "invisivel" }
     ];
 
     const powerUps = [
@@ -202,16 +239,20 @@
     ];
 
     game.addEventListener("mousemove", e => {
-      const rect = game.getBoundingClientRect();
-      playerX = e.clientX - rect.left - 25;
-      playerY = e.clientY - rect.top - 25;
+      if (!joystickActive) {
+        const rect = game.getBoundingClientRect();
+        playerX = e.clientX - rect.left - 25;
+        playerY = e.clientY - rect.top - 25;
+      }
     });
 
     game.addEventListener("touchmove", e => {
-      const rect = game.getBoundingClientRect();
-      let touch = e.touches[0];
-      playerX = touch.clientX - rect.left - 25;
-      playerY = touch.clientY - rect.top - 25;
+      if (!joystickActive) {
+        const rect = game.getBoundingClientRect();
+        let touch = e.touches[0];
+        playerX = touch.clientX - rect.left - 25;
+        playerY = touch.clientY - rect.top - 25;
+      }
     });
 
     game.addEventListener("touchstart", e => {
@@ -225,6 +266,41 @@
     restartButton.addEventListener("touchstart", (e) => {
       e.preventDefault();
       location.reload();
+    });
+
+    // Joystick controls
+    joystick.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      joystickActive = true;
+      const rect = joystick.getBoundingClientRect();
+      joystickCenterX = rect.left + rect.width / 2;
+      joystickCenterY = rect.top + rect.height / 2;
+    });
+
+    joystick.addEventListener("touchmove", (e) => {
+      e.preventDefault();
+      if (joystickActive) {
+        let touch = e.touches[0];
+        let dx = touch.clientX - joystickCenterX;
+        let dy = touch.clientY - joystickCenterY;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+        let maxDistance = 50; // Half of joystick width
+        if (distance > maxDistance) {
+          dx = (dx / distance) * maxDistance;
+          dy = (dy / distance) * maxDistance;
+        }
+        handleX = dx;
+        handleY = dy;
+        handle.style.transform = `translate(${dx}px, ${dy}px)`;
+      }
+    });
+
+    joystick.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      joystickActive = false;
+      handleX = 0;
+      handleY = 0;
+      handle.style.transform = `translate(0px, 0px)`;
     });
 
     function criarProva() {
@@ -271,7 +347,7 @@
         let dist = Math.sqrt(dx * dx + dy * dy);
         let vel = baseVel;
 
-        if (prova.tipo === "rapida") vel = baseVel * 2;
+        if (prova.tipo === "rapida") vel = baseVel * 4;
         else if (prova.tipo === "bugada") {
           vel = baseVel * (0.2 + Math.random() * 2);
           dx += (Math.random() - 0.5) * 50;
@@ -292,24 +368,29 @@
         prova.element.style.left = prova.x + "px";
         prova.element.style.top = prova.y + "px";
 
-        if (Math.abs(playerX - prova.x) < 30 && Math.abs(playerY - prova.y) < 30 && !isInvincible) {
-          vidas--;
-          if (vidas > 0) {
-            playerX = 100;
-            playerY = 100;
-            livesDisplay.textContent = "❤️".repeat(vidas);
-          } else {
-            clearInterval(loop);
-            clearInterval(timerInterval);
-            gameOver.innerHTML = `<p>Você foi pego pela prova!<br>Sua pontuação: ${score}<br>Recurso contigo😂</p><button id="restartButton">Jogar Novamente</button>`;
-            gameOver.style.display = "flex";
-            document.getElementById("gameOverSound").play();
-            // Reatribuir evento ao novo botão após recriação
-            document.getElementById("restartButton").addEventListener("click", () => location.reload());
-            document.getElementById("restartButton").addEventListener("touchstart", (e) => {
-              e.preventDefault();
-              location.reload();
-            });
+        if (!isInvisible && Math.abs(playerX - prova.x) < 30 && Math.abs(playerY - prova.y) < 30) {
+          if (prova.tipo === "invisivel") {
+            aplicarEfeitoInvisibilidade(5000); // 5 segundos de invisibilidade
+            prova.element.remove();
+            provas = provas.filter(p => p !== prova);
+          } else if (!isInvincible) {
+            vidas--;
+            if (vidas > 0) {
+              playerX = 100;
+              playerY = 100;
+              livesDisplay.textContent = "❤️".repeat(vidas);
+            } else {
+              clearInterval(loop);
+              clearInterval(timerInterval);
+              gameOver.innerHTML = `<p>Você foi pego pela prova!<br>Sua pontuação: ${score}<br>Recurso ou recuperação? 😂</p><button id="restartButton">Jogar Novamente</button>`;
+              gameOver.style.display = "flex";
+              document.getElementById("gameOverSound").play();
+              document.getElementById("restartButton").addEventListener("click", () => location.reload());
+              document.getElementById("restartButton").addEventListener("touchstart", (e) => {
+                e.preventDefault();
+                location.reload();
+              });
+            }
           }
         }
       });
@@ -327,6 +408,10 @@
         if (count > 3) {
           provas[i].x = Math.random() * (game.clientWidth - 50);
           provas[i].y = Math.random() * (game.clientHeight - 50);
+          if (isInvisible) {
+            isInvisible = false;
+            player.style.opacity = 1;
+          }
         }
       }
 
@@ -343,18 +428,42 @@
     function aplicarEfeitoPowerUp(tipo, duracao) {
       if (tipo === "speed") {
         playerVelMultiplier = 2;
-        setTimeout(() => {
+        activePowerUps.push({ tipo: "speed", timeout: setTimeout(() => {
           playerVelMultiplier = 1;
-        }, duracao);
+          activePowerUps = activePowerUps.filter(p => p.tipo !== "speed");
+          updatePowerUpStatus();
+        }, duracao) });
       } else if (tipo === "invincible") {
         isInvincible = true;
-        setTimeout(() => {
+        activePowerUps.push({ tipo: "invincible", timeout: setTimeout(() => {
           isInvincible = false;
-        }, duracao);
+          activePowerUps = activePowerUps.filter(p => p.tipo !== "invincible");
+          updatePowerUpStatus();
+        }, duracao) });
       }
+      updatePowerUpStatus();
+    }
+
+    function aplicarEfeitoInvisibilidade(duracao) {
+      isInvisible = true;
+      player.style.opacity = 0.5;
+      setTimeout(() => {
+        isInvisible = false;
+        player.style.opacity = 1;
+      }, duracao);
+    }
+
+    function updatePowerUpStatus() {
+      powerUpStatus.innerHTML = activePowerUps.map(p => p.tipo).join(", ");
     }
 
     function atualizarPlayer() {
+      if (joystickActive) {
+        let speed = Math.sqrt(handleX * handleX + handleY * handleY) / 50 * 5; // Max speed 5
+        let angle = Math.atan2(handleY, handleX);
+        playerX += speed * Math.cos(angle);
+        playerY += speed * Math.sin(angle);
+      }
       player.style.left = playerX + "px";
       player.style.top = playerY + "px";
     }
@@ -362,7 +471,7 @@
     const loop = setInterval(() => {
       moveProvas();
       atualizarPlayer();
-    }, 33); // Ajustado para 30 FPS, mais leve
+    }, 33);
 
     const timerInterval = setInterval(() => {
       tempo++;
@@ -374,7 +483,7 @@
         difficultyLevel++;
       }
 
-      if (tempo % 4 === 0 && provas.length < 10) criarProva(); // Limite reduzido para 10
+      if (tempo % 4 === 0 && provas.length < 10) criarProva();
 
       if (provas.length > 10) {
         let old = provas.shift();
