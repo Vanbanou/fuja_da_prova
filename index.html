@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fuja da Prova!</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Comic Sans MS', cursive, sans-serif;
+      background: linear-gradient(120deg, #ffecd2, #fcb69f);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin-top: 10px;
+      color: #2d2d2d;
+      text-shadow: 1px 1px white;
+    }
+
+    #lives,
+    #timer,
+    #score {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      background-color: #fff;
+      padding: 8px 16px;
+      border-radius: 10px;
+      box-shadow: 2px 2px #888;
+    }
+
+    #game {
+      position: relative;
+      width: 90vw;
+      max-width: 500px;
+      height: 75vh;
+      background: #fff4e6;
+      border: 5px dashed #ff6f61;
+      overflow: hidden;
+      border-radius: 15px;
+    }
+
+    .player {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background-color: #4dabf7;
+      color: white;
+      font-size: 26px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 0 10px #0077cc;
+      transition: left 0.1s ease, top 0.1s ease;
+    }
+
+    .prova {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      border-radius: 8px;
+      color: white;
+      font-size: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 0 10px #000;
+      flex-direction: column;
+      transition: left 0.1s ease, top 0.1s ease;
+    }
+
+    .prova span {
+      font-size: 10px;
+      margin-top: 2px;
+      text-align: center;
+    }
+
+    .powerUp {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      color: white;
+      font-size: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 0 10px #000;
+      flex-direction: column;
+      transition: left 0.1s ease, top 0.1s ease;
+    }
+
+    .powerUp span {
+      font-size: 8px;
+      margin-top: 2px;
+      text-align: center;
+    }
+
+    #gameOver {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.85);
+      color: white;
+      font-size: 24px;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      flex-direction: column;
+      padding: 20px;
+      z-index: 10;
+    }
+
+    #gameOver button {
+      padding: 10px 20px;
+      margin-top: 15px;
+      font-size: 16px;
+      background-color: #ffb347;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>🏃‍♂️ Fuja da Prova!</h1>
+  <div style="display: flex; align-items: baseline;">
+    <div id="lives">❤️❤️❤️</div>
+    <div style="width: 30px;"></div>
+    <div id="timer">⏱️ Tempo: 0s</div>
+    <div style="width: 30px;"></div>
+    <div id="score">💯 Pontuação: 0</div>
+  </div>
+  <div id="game">
+    <div class="player" id="player">👨‍🎓</div>
+    <div id="gameOver">
+      <p>Você foi pego pela prova!<br>Sua pontuação: 0<br>Recurso ou recuperação? 😂</p>
+      <button onclick="location.reload()">Jogar Novamente</button>
+    </div>
+  </div>
+  <audio id="powerUpSound" src="powerup.mp3"></audio>
+  <audio id="gameOverSound" src="gameover.mp3"></audio>
+
+  <script>
+    const player = document.getElementById("player");
+    const game = document.getElementById("game");
+    const timerDisplay = document.getElementById("timer");
+    const scoreDisplay = document.getElementById("score");
+    const livesDisplay = document.getElementById("lives");
+    const gameOver = document.getElementById("gameOver");
+
+    let playerX = 100, playerY = 100;
+    let provas = [];
+    let powerUpsAtivos = [];
+    let tempo = 0;
+    let score = 0;
+    let vidas = 3;
+    let difficultyLevel = 1;
+    let isInvincible = false;
+    let playerVelMultiplier = 1;
+
+    const nomesDasProvas = [
+      { nome: "Técnicas de Compilação", cor: "#9b59b6", tipo: "aleatoria" },
+      { nome: "Inteligência Artificial", cor: "#1e3799", tipo: "previsora" },
+      { nome: "Engenharia de Software", cor: "#e67e22", tipo: "rapida" },
+      { nome: "Sistemas Distribuídos", cor: "#e74c3c", tipo: "grupo" },
+      { nome: "Programação Web", cor: "#27ae60", tipo: "bugada" }
+    ];
+
+    const powerUps = [
+      { tipo: "speed", cor: "#ffd700", efeito: "Aumenta velocidade", duracao: 5000 },
+      { tipo: "invincible", cor: "#00ff00", efeito: "Invencível", duracao: 3000 }
+    ];
+
+    game.addEventListener("mousemove", e => {
+      const rect = game.getBoundingClientRect();
+      playerX = e.clientX - rect.left - 25;
+      playerY = e.clientY - rect.top - 25;
+    });
+
+    game.addEventListener("touchmove", e => {
+      const rect = game.getBoundingClientRect();
+      let touch = e.touches[0];
+      playerX = touch.clientX - rect.left - 25;
+      playerY = touch.clientY - rect.top - 25;
+    });
+
+    function criarProva() {
+      let info = nomesDasProvas[Math.floor(Math.random() * nomesDasProvas.length)];
+
+      if (info.tipo === "grupo") {
+        for (let i = 0; i < 3; i++) criarUmaProva(info);
+      } else {
+        criarUmaProva(info);
+      }
+    }
+
+    function criarUmaProva(info) {
+      const prova = document.createElement("div");
+      prova.classList.add("prova");
+      prova.style.backgroundColor = info.cor;
+      prova.style.left = Math.random() * (game.clientWidth - 50) + "px";
+      prova.style.top = Math.random() * (game.clientHeight - 50) + "px";
+      prova.innerHTML = `📄<span>${info.nome}</span>`;
+
+      game.appendChild(prova);
+      provas.push({ element: prova, x: parseInt(prova.style.left), y: parseInt(prova.style.top), tipo: info.tipo });
+    }
+
+    function criarPowerUp() {
+      const powerUpInfo = powerUps[Math.floor(Math.random() * powerUps.length)];
+      const powerUp = document.createElement("div");
+      powerUp.classList.add("powerUp");
+      powerUp.style.backgroundColor = powerUpInfo.cor;
+      powerUp.style.left = Math.random() * (game.clientWidth - 30) + "px";
+      powerUp.style.top = Math.random() * (game.clientHeight - 30) + "px";
+      powerUp.innerHTML = `⭐<span>${powerUpInfo.efeito}</span>`;
+
+      game.appendChild(powerUp);
+      powerUpsAtivos.push({ element: powerUp, x: parseInt(powerUp.style.left), y: parseInt(powerUp.style.top), tipo: powerUpInfo.tipo, duracao: powerUpInfo.duracao });
+    }
+
+    function moveProvas() {
+      let baseVel = 1 + (difficultyLevel - 1) * 0.5;
+
+      provas.forEach(prova => {
+        let dx = playerX - prova.x;
+        let dy = playerY - prova.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        let vel = baseVel;
+
+        if (prova.tipo === "rapida") vel = baseVel * 2;
+        else if (prova.tipo === "bugada") {
+          vel = baseVel * (0.2 + Math.random() * 2);
+          dx += (Math.random() - 0.5) * 50;
+          dy += (Math.random() - 0.5) * 50;
+        }
+        else if (prova.tipo === "previsora") {
+          dx += dx * 0.3; dy += dy * 0.3;
+        } else if (prova.tipo === "aleatoria" && Math.random() < 0.01) {
+          prova.x = Math.random() * (game.clientWidth - 50);
+          prova.y = Math.random() * (game.clientHeight - 50);
+        }
+
+        if (dist > 0) {
+          prova.x += vel * (dx / dist);
+          prova.y += vel * (dy / dist);
+        }
+
+        prova.element.style.left = prova.x + "px";
+        prova.element.style.top = prova.y + "px";
+
+        if (Math.abs(playerX - prova.x) < 30 && Math.abs(playerY - prova.y) < 30 && !isInvincible) {
+          vidas--;
+          if (vidas > 0) {
+            playerX = 100;
+            playerY = 100;
+            livesDisplay.textContent = "❤️".repeat(vidas);
+          } else {
+            clearInterval(loop);
+            clearInterval(timerInterval);
+            gameOver.innerHTML = `<p>Você foi pego pela prova!<br>Sua pontuação: ${score}<br>Recurso ou recuperação? 😂</p><button onclick="location.reload()">Jogar Novamente</button>`;
+            gameOver.style.display = "flex";
+            document.getElementById("gameOverSound").play();
+          }
+        }
+      });
+
+      // Detectar aglomerações
+      for (let i = 0; i < provas.length; i++) {
+        let count = 0;
+        for (let j = 0; j < provas.length; j++) {
+          if (i !== j) {
+            let dx = provas[i].x - provas[j].x;
+            let dy = provas[i].y - provas[j].y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 50) count++;
+          }
+        }
+        if (count > 3) {
+          provas[i].x = Math.random() * (game.clientWidth - 50);
+          provas[i].y = Math.random() * (game.clientHeight - 50);
+        }
+      }
+
+      // Detectar colisão com power-ups
+      powerUpsAtivos.forEach((powerUp, index) => {
+        if (Math.abs(playerX - powerUp.x) < 30 && Math.abs(playerY - powerUp.y) < 30) {
+          aplicarEfeitoPowerUp(powerUp.tipo, powerUp.duracao);
+          powerUp.element.remove();
+          powerUpsAtivos.splice(index, 1);
+          document.getElementById("powerUpSound").play();
+        }
+      });
+    }
+
+    function aplicarEfeitoPowerUp(tipo, duracao) {
+      if (tipo === "speed") {
+        playerVelMultiplier = 2;
+        setTimeout(() => {
+          playerVelMultiplier = 1;
+        }, duracao);
+      } else if (tipo === "invincible") {
+        isInvincible = true;
+        setTimeout(() => {
+          isInvincible = false;
+        }, duracao);
+      }
+    }
+
+    function atualizarPlayer() {
+      player.style.left = playerX + "px";
+      player.style.top = playerY + "px";
+    }
+
+    const loop = setInterval(() => {
+      moveProvas();
+      atualizarPlayer();
+    }, 20);
+
+    const timerInterval = setInterval(() => {
+      tempo++;
+      timerDisplay.textContent = `⏱️ Tempo: ${tempo}s`;
+      score++;
+      scoreDisplay.textContent = `💯 Pontuação: ${score}`;
+
+      if (tempo % 30 === 0 && tempo > 0) {
+        difficultyLevel++;
+      }
+
+      if (tempo % 4 === 0 && provas.length < 15) criarProva();
+
+      if (provas.length > 15) {
+        let old = provas.shift();
+        old.element.remove();
+      }
+
+      if (tempo % 10 === 0 && Math.random() < 0.5) {
+        criarPowerUp();
+      }
+    }, 1000);
+  </script>
+</body>
+
+</html>
