@@ -8,7 +8,7 @@
   <style>
     body {
       margin: 0;
-      font-family: 'Comic Sans MS', cursive, sans-serif;
+      font-family: 'Arial', sans-serif;
       background: linear-gradient(120deg, #d4ffd2, #9ffcb2);
       display: flex;
       flex-direction: column;
@@ -16,7 +16,6 @@
       height: 90vh;
       user-select: none;
       -webkit-user-select: none;
-      
     }
 
     h1 {
@@ -129,6 +128,7 @@
       border: none;
       border-radius: 10px;
       cursor: pointer;
+      touch-action: manipulation;
     }
 
     @media (max-width: 500px) {
@@ -163,7 +163,7 @@
     <div class="player" id="player">👨‍🎓</div>
     <div id="gameOver">
       <p>Você foi pego pela prova!<br>Sua pontuação: 0<br>Recurso ou recuperação? 😂</p>
-      <button onclick="location.reload()">Jogar Novamente</button>
+      <button id="restartButton">Jogar Novamente</button>
     </div>
   </div>
   <audio id="powerUpSound" src="powerup.mp3"></audio>
@@ -176,6 +176,7 @@
     const scoreDisplay = document.getElementById("score");
     const livesDisplay = document.getElementById("lives");
     const gameOver = document.getElementById("gameOver");
+    const restartButton = document.getElementById("restartButton");
 
     let playerX = 100, playerY = 100;
     let provas = [];
@@ -215,6 +216,15 @@
 
     game.addEventListener("touchstart", e => {
       e.preventDefault();
+    });
+
+    restartButton.addEventListener("click", () => {
+      location.reload();
+    });
+
+    restartButton.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      location.reload();
     });
 
     function criarProva() {
@@ -291,14 +301,19 @@
           } else {
             clearInterval(loop);
             clearInterval(timerInterval);
-            gameOver.innerHTML = `<p>Você foi pego pela prova!<br>Sua pontuação: ${score}<br>Recurso ou recuperação? 😂</p><button onclick="location.reload()">Jogar Novamente</button>`;
+            gameOver.innerHTML = `<p>Você foi pego pela prova!<br>Sua pontuação: ${score}<br>Recurso contigo😂</p><button id="restartButton">Jogar Novamente</button>`;
             gameOver.style.display = "flex";
             document.getElementById("gameOverSound").play();
+            // Reatribuir evento ao novo botão após recriação
+            document.getElementById("restartButton").addEventListener("click", () => location.reload());
+            document.getElementById("restartButton").addEventListener("touchstart", (e) => {
+              e.preventDefault();
+              location.reload();
+            });
           }
         }
       });
 
-      // Detectar aglomerações
       for (let i = 0; i < provas.length; i++) {
         let count = 0;
         for (let j = 0; j < provas.length; j++) {
@@ -315,7 +330,6 @@
         }
       }
 
-      // Detectar colisão com power-ups
       powerUpsAtivos.forEach((powerUp, index) => {
         if (Math.abs(playerX - powerUp.x) < 30 && Math.abs(playerY - powerUp.y) < 30) {
           aplicarEfeitoPowerUp(powerUp.tipo, powerUp.duracao);
@@ -348,7 +362,7 @@
     const loop = setInterval(() => {
       moveProvas();
       atualizarPlayer();
-    }, 20);
+    }, 33); // Ajustado para 30 FPS, mais leve
 
     const timerInterval = setInterval(() => {
       tempo++;
@@ -360,9 +374,9 @@
         difficultyLevel++;
       }
 
-      if (tempo % 4 === 0 && provas.length < 15) criarProva();
+      if (tempo % 4 === 0 && provas.length < 10) criarProva(); // Limite reduzido para 10
 
-      if (provas.length > 15) {
+      if (provas.length > 10) {
         let old = provas.shift();
         old.element.remove();
       }
