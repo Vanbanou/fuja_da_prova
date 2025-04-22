@@ -394,7 +394,7 @@
             } else {
               clearInterval(loop);
               clearInterval(timerInterval);
-              gameOver.innerHTML = `<p>Você foi pego pela prova!<br>Sua pontuação: ${score}<br>Recurso ou recuperação? 😂</p><button id="restartButton">Jogar Novamente</button>`;
+              gameOver.innerHTML = `<p>Você foi pego pela prova!<br>Sua pontuação: ${score}<br>Recurso contigo? 😂</p><button id="restartButton">Jogar Novamente</button>`;
               gameOver.style.display = "flex";
               document.getElementById("gameOverSound").play();
               document.getElementById("restartButton").addEventListener("click", () => location.reload());
