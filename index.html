@@ -4,18 +4,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
   <title>Fuja da Prova!</title>
   <style>
     body {
       margin: 0;
-      font-family: 'Arial', sans-serif;
+      font-family: "Pixelify Sans";
       background: linear-gradient(120deg, #d4ffd2, #9ffcb2);
       display: flex;
       flex-direction: column;
       align-items: center;
-      height: 100vh;
+      height: 90vh;
       user-select: none;
       -webkit-user-select: none;
+    }
+
+    h1 {
+      margin-top: 10px;
+      color: #2d2d2d;
+      text-shadow: 1px 1px white;
     }
 
     #lives,
@@ -30,15 +39,6 @@
       box-shadow: 2px 2px #888;
     }
 
-    #powerUpStatus {
-      font-size: 16px;
-      color: white;
-      background-color: rgba(0, 0, 0, 0.7);
-      padding: 5px 10px;
-      border-radius: 10px;
-      margin-bottom: 10px;
-    }
-
     #game {
       position: relative;
       width: 90vw;
@@ -48,7 +48,7 @@
       border: 5px dashed #ff6f61;
       overflow: hidden;
       border-radius: 15px;
-      margin-bottom: 100px;
+      margin-bottom: 50px;
     }
 
     .player {
@@ -134,9 +134,21 @@
       touch-action: manipulation;
     }
 
+    #powerUpStatus {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 16px;
+      color: white;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 5px 10px;
+      border-radius: 10px;
+      z-index: 5;
+    }
+
     #joystick {
       position: fixed;
-      bottom: 50px;
+      bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       width: 100px;
@@ -183,9 +195,9 @@
     <div style="width: 30px;"></div>
     <div id="score">💯 Pontos: 0</div>
   </div>
-  <div id="powerUpStatus"></div>
   <div id="game">
     <div class="player" id="player">👨‍🎓</div>
+    <div id="powerUpStatus"></div>
     <div id="gameOver">
       <p>Você foi pego pela prova!<br>Sua pontuação: 0<br>Recurso ou recuperação? 😂</p>
       <button id="restartButton">Jogar Novamente</button>
@@ -347,7 +359,7 @@
         let dist = Math.sqrt(dx * dx + dy * dy);
         let vel = baseVel;
 
-        if (prova.tipo === "rapida") vel = baseVel * 4;
+        if (prova.tipo === "rapida") vel = baseVel * 2;
         else if (prova.tipo === "bugada") {
           vel = baseVel * (0.2 + Math.random() * 2);
           dx += (Math.random() - 0.5) * 50;
@@ -428,18 +440,22 @@
     function aplicarEfeitoPowerUp(tipo, duracao) {
       if (tipo === "speed") {
         playerVelMultiplier = 2;
-        activePowerUps.push({ tipo: "speed", timeout: setTimeout(() => {
-          playerVelMultiplier = 1;
-          activePowerUps = activePowerUps.filter(p => p.tipo !== "speed");
-          updatePowerUpStatus();
-        }, duracao) });
+        activePowerUps.push({
+          tipo: "speed", timeout: setTimeout(() => {
+            playerVelMultiplier = 1;
+            activePowerUps = activePowerUps.filter(p => p.tipo !== "speed");
+            updatePowerUpStatus();
+          }, duracao)
+        });
       } else if (tipo === "invincible") {
         isInvincible = true;
-        activePowerUps.push({ tipo: "invincible", timeout: setTimeout(() => {
-          isInvincible = false;
-          activePowerUps = activePowerUps.filter(p => p.tipo !== "invincible");
-          updatePowerUpStatus();
-        }, duracao) });
+        activePowerUps.push({
+          tipo: "invincible", timeout: setTimeout(() => {
+            isInvincible = false;
+            activePowerUps = activePowerUps.filter(p => p.tipo !== "invincible");
+            updatePowerUpStatus();
+          }, duracao)
+        });
       }
       updatePowerUpStatus();
     }
@@ -464,6 +480,11 @@
         playerX += speed * Math.cos(angle);
         playerY += speed * Math.sin(angle);
       }
+
+      // Restringir o jogador dentro dos limites do jogo
+      playerX = Math.max(0, Math.min(playerX, game.clientWidth - 50));
+      playerY = Math.max(0, Math.min(playerY, game.clientHeight - 50));
+
       player.style.left = playerX + "px";
       player.style.top = playerY + "px";
     }
