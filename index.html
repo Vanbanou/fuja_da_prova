@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Fuja da Prova!</title>
   <style>
     body {
@@ -14,6 +14,9 @@
       flex-direction: column;
       align-items: center;
       height: 100vh;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
     }
 
     h1 {
@@ -126,6 +129,23 @@
       border-radius: 10px;
       cursor: pointer;
     }
+
+    @media (max-width: 500px) {
+      h1 {
+        font-size: 1.2em;
+      }
+
+      #lives,
+      #timer,
+      #score {
+        font-size: 14px;
+        padding: 5px 10px;
+      }
+
+      #game {
+        height: calc(100vh - 120px);
+      }
+    }
   </style>
 </head>
 
@@ -190,6 +210,10 @@
       let touch = e.touches[0];
       playerX = touch.clientX - rect.left - 25;
       playerY = touch.clientY - rect.top - 25;
+    });
+
+    game.addEventListener("touchstart", e => {
+      e.preventDefault();
     });
 
     function criarProva() {
