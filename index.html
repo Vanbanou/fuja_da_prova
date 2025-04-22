@@ -12,7 +12,7 @@
     body {
       margin: 0;
       font-family: "Pixelify Sans";
-      background: linear-gradient(120deg, #d4ffd2, #9ffcb2);
+      background-color: #0f160f;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -44,11 +44,12 @@
       width: 90vw;
       max-width: 500px;
       height: 75vh;
-      background: #2e2e2e;
+      background: #262626;
       border: 5px dashed #ff6f61;
       overflow: hidden;
       border-radius: 15px;
       margin-bottom: 50px;
+      display: none; /* Escondido até o jogo começar */
     }
 
     .player {
@@ -155,7 +156,7 @@
       height: 100px;
       background-color: rgba(255, 255, 255, 0.5);
       border-radius: 50%;
-      display: flex;
+      display: none; /* Escondido até o jogo começar */
       justify-content: center;
       align-items: center;
     }
@@ -166,6 +167,45 @@
       background-color: #4dabf7;
       border-radius: 50%;
       position: absolute;
+    }
+
+    #startScreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      color: white;
+      font-size: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      flex-direction: column;
+      padding: 20px;
+      z-index: 15;
+    }
+
+    #startScreen h1 {
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+
+    #startScreen p {
+      font-size: 16px;
+      margin-bottom: 30px;
+      max-width: 80%;
+    }
+
+    #startScreen button {
+      padding: 15px 30px;
+      font-size: 18px;
+      background-color: #ffb347;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      touch-action: manipulation;
     }
 
     @media (max-width: 500px) {
@@ -183,12 +223,25 @@
       #game {
         height: calc(100vh - 120px);
       }
+
+      #startScreen h1 {
+        font-size: 24px;
+      }
+
+      #startScreen p {
+        font-size: 14px;
+      }
+
+      #startScreen button {
+        padding: 10px 20px;
+        font-size: 16px;
+      }
     }
   </style>
 </head>
 
 <body>
-  <div style="display: flex; align-items: baseline; margin-top: 10px;">
+  <div style="display: flex; align-items: baseline; margin-top: 10px; display: none;" id="gameStats">
     <div id="lives">❤️❤️❤️</div>
     <div style="width: 30px;"></div>
     <div id="timer">⏱️ Tempo: 0s</div>
@@ -206,8 +259,16 @@
   <div id="joystick">
     <div id="handle"></div>
   </div>
-  <audio id="powerUpSound" src="powerup.mp3"></audio>
-  <audio id="gameOverSound" src="gameover.mp3"></audio>
+  <div id="startScreen">
+    <h1>Fuja da Prova!</h1>
+    <p>Você é um estudante tentando escapar das provas! Use o joystick (ou mouse) para mover o personagem e evitar as provas que te perseguem. Pegue power-ups como velocidade ou invencibilidade para ajudar. Sobreviva o máximo que puder e acumule pontos! Cuidado: cada prova tem um comportamento único!</p>
+    <button id="startButton">Iniciar Jogo</button>
+  </div>
+  <audio id="startGameSound" src="sound.mp3" loop></audio>
+  <audio id="provaAppearSound" src="prova.mp3"></audio>
+  <audio id="powerUpSound" src="powerUp.mp3"></audio>
+  <audio id="gameOverSound" src="gameOver.mp3"></audio>
+  <audio id="coinSound" src="coin.mp3"></audio>
 
   <script>
     const player = document.getElementById("player");
@@ -220,6 +281,9 @@
     const powerUpStatus = document.getElementById("powerUpStatus");
     const joystick = document.getElementById("joystick");
     const handle = document.getElementById("handle");
+    const startScreen = document.getElementById("startScreen");
+    const startButton = document.getElementById("startButton");
+    const gameStats = document.getElementById("gameStats");
 
     let playerX = 100, playerY = 100;
     let provas = [];
@@ -235,6 +299,8 @@
     let joystickActive = false;
     let joystickCenterX, joystickCenterY;
     let handleX = 0, handleY = 0;
+    let hasStartedSound = false;
+    let loop, timerInterval;
 
     const nomesDasProvas = [
       { nome: "Técnicas de Compilação", cor: "#9b59b6", tipo: "aleatoria" },
@@ -247,8 +313,69 @@
 
     const powerUps = [
       { tipo: "speed", cor: "#ffd700", efeito: "Aumenta velocidade", duracao: 5000 },
-      { tipo: "invincible", cor: "#00ff00", efeito: "Invencível", duracao: 3000 }
+      { tipo: "invincible", cor: "#00ff00", efeito: "Invencível", duracao: 3000 },
+      { tipo: "moeda", cor: "#ffcc00", efeito: "Moeda (+100 pontos)", duracao: 0 }
     ];
+
+    function playStartSound() {
+      if (!hasStartedSound) {
+        document.getElementById("startGameSound").play().catch(e => console.log("Erro ao tocar áudio:", e));
+        hasStartedSound = true;
+      }
+    }
+
+    function startGame() {
+      startScreen.style.display = "none";
+      game.style.display = "block";
+      joystick.style.display = "flex";
+      gameStats.style.display = "flex";
+      playStartSound();
+
+      loop = setInterval(() => {
+        moveProvas();
+        atualizarPlayer();
+      }, 33);
+
+      timerInterval = setInterval(() => {
+        tempo++;
+        timerDisplay.textContent = `⏱️ Tempo: ${tempo}s`;
+        score++;
+        scoreDisplay.textContent = `💯 Pontos: ${score}`;
+
+        if (tempo % 30 === 0 && tempo > 0) {
+          difficultyLevel++;
+        }
+
+        if (tempo % 4 === 0 && provas.length < 10) criarProva();
+
+        if (provas.length > 10) {
+          let old = provas.shift();
+          old.element.remove();
+        }
+
+        if (tempo % 10 === 0 && Math.random() < 0.5) {
+          criarPowerUp();
+        }
+      }, 1000);
+    }
+
+    startButton.addEventListener("click", startGame);
+    startButton.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      startGame();
+    });
+
+    game.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+    });
+
+    joystick.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      joystickActive = true;
+      const rect = joystick.getBoundingClientRect();
+      joystickCenterX = rect.left + rect.width / 2;
+      joystickCenterY = rect.top + rect.height / 2;
+    });
 
     game.addEventListener("mousemove", e => {
       if (!joystickActive) {
@@ -267,10 +394,6 @@
       }
     });
 
-    game.addEventListener("touchstart", e => {
-      e.preventDefault();
-    });
-
     restartButton.addEventListener("click", () => {
       location.reload();
     });
@@ -280,15 +403,6 @@
       location.reload();
     });
 
-    // Joystick controls
-    joystick.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      joystickActive = true;
-      const rect = joystick.getBoundingClientRect();
-      joystickCenterX = rect.left + rect.width / 2;
-      joystickCenterY = rect.top + rect.height / 2;
-    });
-
     joystick.addEventListener("touchmove", (e) => {
       e.preventDefault();
       if (joystickActive) {
@@ -296,7 +410,7 @@
         let dx = touch.clientX - joystickCenterX;
         let dy = touch.clientY - joystickCenterY;
         let distance = Math.sqrt(dx * dx + dy * dy);
-        let maxDistance = 50; // Half of joystick width
+        let maxDistance = 50;
         if (distance > maxDistance) {
           dx = (dx / distance) * maxDistance;
           dy = (dy / distance) * maxDistance;
@@ -317,11 +431,14 @@
 
     function criarProva() {
       let info = nomesDasProvas[Math.floor(Math.random() * nomesDasProvas.length)];
-
-      if (info.tipo === "grupo") {
-        for (let i = 0; i < 3; i++) criarUmaProva(info);
+      if (info.tipo === "grupo" || info.tipo === "invisivel") {
+        for (let i = 0; i < 3; i++) {
+          criarUmaProva(info);
+          document.getElementById("provaAppearSound").play().catch(e => console.log("Erro ao tocar áudio:", e));
+        }
       } else {
         criarUmaProva(info);
+        document.getElementById("provaAppearSound").play().catch(e => console.log("Erro ao tocar áudio:", e));
       }
     }
 
@@ -370,6 +487,9 @@
         } else if (prova.tipo === "aleatoria" && Math.random() < 0.01) {
           prova.x = Math.random() * (game.clientWidth - 50);
           prova.y = Math.random() * (game.clientHeight - 50);
+        } else if (prova.tipo === "invisivel" && dist < 100) {
+          dividirProvaGrupo(prova);
+          return;
         }
 
         if (dist > 0) {
@@ -382,7 +502,7 @@
 
         if (!isInvisible && Math.abs(playerX - prova.x) < 30 && Math.abs(playerY - prova.y) < 30) {
           if (prova.tipo === "invisivel") {
-            aplicarEfeitoInvisibilidade(5000); // 5 segundos de invisibilidade
+            aplicarEfeitoInvisibilidade(5000);
             prova.element.remove();
             provas = provas.filter(p => p !== prova);
           } else if (!isInvincible) {
@@ -396,7 +516,7 @@
               clearInterval(timerInterval);
               gameOver.innerHTML = `<p>Você foi pego pela prova!<br>Sua pontuação: ${score}<br>Recurso contigo? 😂</p><button id="restartButton">Jogar Novamente</button>`;
               gameOver.style.display = "flex";
-              document.getElementById("gameOverSound").play();
+              document.getElementById("gameOverSound").play().catch(e => console.log("Erro ao tocar áudio:", e));
               document.getElementById("restartButton").addEventListener("click", () => location.reload());
               document.getElementById("restartButton").addEventListener("touchstart", (e) => {
                 e.preventDefault();
@@ -429,12 +549,37 @@
 
       powerUpsAtivos.forEach((powerUp, index) => {
         if (Math.abs(playerX - powerUp.x) < 30 && Math.abs(playerY - powerUp.y) < 30) {
-          aplicarEfeitoPowerUp(powerUp.tipo, powerUp.duracao);
+          if (powerUp.tipo === "moeda") {
+            score += 100;
+            scoreDisplay.textContent = `💯 Pontos: ${score}`;
+            document.getElementById("coinSound").play().catch(e => console.log("Erro ao tocar áudio:", e));
+          } else {
+            aplicarEfeitoPowerUp(powerUp.tipo, powerUp.duracao);
+            document.getElementById("powerUpSound").play().catch(e => console.log("Erro ao tocar áudio:", e));
+          }
           powerUp.element.remove();
           powerUpsAtivos.splice(index, 1);
-          document.getElementById("powerUpSound").play();
         }
       });
+    }
+
+    function dividirProvaGrupo(prova) {
+      prova.element.remove();
+      provas = provas.filter(p => p !== prova);
+
+      for (let i = 0; i < 3; i++) {
+        const miniProva = document.createElement("div");
+        miniProva.classList.add("prova");
+        miniProva.style.backgroundColor = "#8e44ad";
+        miniProva.style.width = "30px";
+        miniProva.style.height = "30px";
+        miniProva.style.left = prova.x + (Math.random() - 0.5) * 50 + "px";
+        miniProva.style.top = prova.y + (Math.random() - 0.5) * 50 + "px";
+        miniProva.innerHTML = `📄<span>Mini Grupo</span>`;
+
+        game.appendChild(miniProva);
+        provas.push({ element: miniProva, x: parseInt(miniProva.style.left), y: parseInt(miniProva.style.top), tipo: "aleatoria" });
+      }
     }
 
     function aplicarEfeitoPowerUp(tipo, duracao) {
@@ -475,46 +620,18 @@
 
     function atualizarPlayer() {
       if (joystickActive) {
-        let speed = Math.sqrt(handleX * handleX + handleY * handleY) / 50 * 5; // Max speed 5
+        let speed = Math.sqrt(handleX * handleX + handleY * handleY) / 50 * 5 * playerVelMultiplier;
         let angle = Math.atan2(handleY, handleX);
         playerX += speed * Math.cos(angle);
         playerY += speed * Math.sin(angle);
       }
 
-      // Restringir o jogador dentro dos limites do jogo
       playerX = Math.max(0, Math.min(playerX, game.clientWidth - 50));
       playerY = Math.max(0, Math.min(playerY, game.clientHeight - 50));
 
       player.style.left = playerX + "px";
       player.style.top = playerY + "px";
     }
-
-    const loop = setInterval(() => {
-      moveProvas();
-      atualizarPlayer();
-    }, 33);
-
-    const timerInterval = setInterval(() => {
-      tempo++;
-      timerDisplay.textContent = `⏱️ Tempo: ${tempo}s`;
-      score++;
-      scoreDisplay.textContent = `💯 Pontos: ${score}`;
-
-      if (tempo % 30 === 0 && tempo > 0) {
-        difficultyLevel++;
-      }
-
-      if (tempo % 4 === 0 && provas.length < 10) criarProva();
-
-      if (provas.length > 10) {
-        let old = provas.shift();
-        old.element.remove();
-      }
-
-      if (tempo % 10 === 0 && Math.random() < 0.5) {
-        criarPowerUp();
-      }
-    }, 1000);
   </script>
 </body>
 
